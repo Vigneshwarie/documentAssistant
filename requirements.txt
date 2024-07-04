@@ -1,8 +1,8 @@
 sentence-transformers
 numpy==1.26.4
-pdfminer
-pdfminer.six
 python-dotenv
 pinecone-client
 streamlit
-PyPDF2
+google-cloud-language
+PyMuPDF 
+python-docx
