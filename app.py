@@ -3,11 +3,9 @@ from docx import Document
 import fitz  # PyMuPDF
 import os
 import streamlit as st
-import pandas as pd
 from pinecone import Pinecone
 from pinecone import ServerlessSpec
 from dotenv import load_dotenv
-from google.cloud import language_v1
 from sentence_transformers import SentenceTransformer
 
 # Initialize Pinecone
@@ -30,7 +28,8 @@ if index_name not in pc.list_indexes().names():
 # connect to index
 index = pc.Index(index_name)
 # view index stats
-index.describe_index_stats()
+index_stats = index.describe_index_stats()
+print("Index Stats:===", index_stats)
 
 model = SentenceTransformer('all-mpnet-base-v2')
 
@@ -39,9 +38,11 @@ model = SentenceTransformer('all-mpnet-base-v2')
 
 def embed_text(text, file_name):
     records = [{"text": text, "file_name": file_name}]
+    # print("records==", records)
     for record in records:
         record['embedding'] = model.encode(record['text']).tolist()
 
+    # print("records==1==", records[0]['embedding'])
     return records[0]['embedding']
 
 # Function to extract text based on file type
@@ -79,11 +80,13 @@ if uploaded_file:
     file_type = uploaded_file.type.split('/')[-1]
     file_name = uploaded_file.name
     text = extract_text(uploaded_file, file_type)
-    print(text)
+    # print(text)
 
     if text:
         embeddings = embed_text(text, file_name)
-        index.upsert([(file_name, embeddings)])
+        index.delete(ids=[file_name])
+        index.upsert([({"id": file_name, "values": embeddings,
+                     "metadata": {"file_name": file_name, "text": text, "file_type": file_type}})], namespace=index_name)
 
         st.write("File uploaded and processed successfully.")
     else:
@@ -91,14 +94,29 @@ if uploaded_file:
 
 
 def search_documents(query):
-    query_embeddings = embed_text(query, "CollegeCounseling.pdf")
-    results = index.query(query_embeddings, top_k=5)
-    return results
+    contexts = []
+    query_embeddings = model.encode(query).tolist()
+    print("query_embeddings==", query_embeddings)
+    results = index.query(namespace=index_name,    vector=query_embeddings,
+                          top_k=20, include_metadata=True)
+    print("results==", results)
+    if "matches" in results:
+        print("Search results==1==", results["matches"])
+        for result in results["matches"]:
+            contexts.append(result)
+
+    else:
+        print("No search results found.")
+
+    print("contexts==", contexts)
+    return contexts
 
 
 query = st.text_input("Enter your query:")
 if query:
     results = search_documents(query)
     st.write("Results:")
-    for match in results["matches"]:
+    print("results==2==", results)
+    for match in results:
+        print(match)
         st.write(match["metadata"]["text"])
