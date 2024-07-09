@@ -29,11 +29,10 @@ if index_name not in pc.list_indexes().names():
 index = pc.Index(index_name)
 # view index stats
 index_stats = index.describe_index_stats()
-print("Index Stats:===", index_stats)
 
 model = SentenceTransformer('all-mpnet-base-v2')
 
-# Function to embed text
+# Function to embed text using SentenceTransformer
 
 
 def embed_text(text, file_name):
@@ -41,8 +40,7 @@ def embed_text(text, file_name):
     # print("records==", records)
     for record in records:
         record['embedding'] = model.encode(record['text']).tolist()
-
-    # print("records==1==", records[0]['embedding'])
+    # print("record['embedding']==", record['embedding'])
     return records[0]['embedding']
 
 # Function to extract text based on file type
@@ -68,11 +66,9 @@ def extract_text(file, file_type):
     return ""
 
 
-# Streamlit interface
-# Streamlit page configuration
+# Streamlit interface to upload documents and search
 st.set_page_config(page_title="Chat with Documents - Pinecone & Google LLM",
                    page_icon="🌲", layout="wide", initial_sidebar_state="expanded")
-
 uploaded_file = st.file_uploader(
     "Upload a document", type=["pdf", "docx", "txt"])
 
@@ -81,13 +77,11 @@ if uploaded_file:
     file_name = uploaded_file.name
     text = extract_text(uploaded_file, file_type)
     # print(text)
-
     if text:
         embeddings = embed_text(text, file_name)
         index.delete(ids=[file_name])
         index.upsert([({"id": file_name, "values": embeddings,
                      "metadata": {"file_name": file_name, "text": text, "file_type": file_type}})], namespace=index_name)
-
         st.write("File uploaded and processed successfully.")
     else:
         st.write("Unsupported file type or empty content.")
@@ -104,11 +98,9 @@ def search_documents(query):
         print("Search results==1==", results["matches"])
         for result in results["matches"]:
             contexts.append(result)
-
     else:
         print("No search results found.")
 
-    print("contexts==", contexts)
     return contexts
 
 
@@ -116,7 +108,6 @@ query = st.text_input("Enter your query:")
 if query:
     results = search_documents(query)
     st.write("Results:")
-    print("results==2==", results)
     for match in results:
         print(match)
         st.write(match["metadata"]["text"])
