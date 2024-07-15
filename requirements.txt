@@ -6,3 +6,4 @@ streamlit
 google-cloud-language
 PyMuPDF 
 python-docx
+openai
